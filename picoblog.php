@@ -54,7 +54,7 @@ class PicoBlog
     private function readSource()
     {
         if (is_file($this->sourcefile) && is_readable($this->sourcefile)) {
-            $this->rawentries = file($this->sourcefile);
+            $this->rawentries = explode(PHP_EOL, file_get_contents($this->sourcefile));
             if (!empty($this->rawentries)) {
                 return true;
             }
@@ -73,22 +73,46 @@ class PicoBlog
     {
         switch ($this->format) {
             case 'twtxt':
-                $pattern = '/^(?<date>[0-9-T:Z]+)\t(?<entry>.*)/';
+                $pattern = '/^(?<date>[^\t]+)\t(?<entry>.+)/';
                 break;
             case 'picoblog':
-                $pattern = '/^(?<date>[0-9-T:Z]+)\t(?<id>[a-zA-Z0-9]{6})\t(?<entry>.*)/';
+                $pattern = '/^(?<date>[^\t]+)\t#(?<id>[a-zA-Z0-9]{6})\t(?<entry>.+)/';
                 break;
         }
         foreach ($entries as $i => $entry) {
             preg_match($pattern, $entry, $matches);
             if (!$matches) continue;
             $id = (!empty($matches['id'])) ? $matches['id'] : $i;
+            $matches['entry'] = $this->parseUsers($matches['entry']);
+            $matches['entry'] = $this->parseHashlinks($matches['entry']);
             $parsedEntries[$id] = [
                 'date' => $matches['date'],
-                'entry' => ($parseTags) ? preg_replace('/#(\w+)?/', '<a href="?tag=$1">#${1}</a>', $matches['entry']) : $matches['entry'],
+                'entry' => ($parseTags) ? preg_replace('/#(\w+)?/', '<a href="?tag=$1" class="tag">#${1}</a>', $matches['entry']) : $matches['entry'],
             ];
         }
         return $parsedEntries;
+    }
+
+    /**
+     * Parse any mentioned users in twtxt format: @<username https://feed-url>
+     *
+     * @param string $entry
+     * @return string string with parsed users
+     */
+    private function parseUsers(string $entry) {
+        $pattern = '/\@<([a-zA-Z0-9\.]+)\W+(https?:\/\/[^>]+)>/';
+        return preg_replace($pattern,'<a href="$2">@$1</a>',$entry);
+    }
+
+    /**
+     * Parse any hashtags in twtxt.net hashlink format: #<tag https://feed-url>
+     *
+     * @param string $entry
+     * @return string string with parsed hashtags
+     */
+    private function parseHashlinks(string $entry) {
+        $pattern = '/#<(\w+)\W+(https?:\/\/[^>]+)>/';
+        return preg_replace($pattern, '<a href="$2">#$1</a>', $entry);
     }
 
     /**
@@ -146,7 +170,7 @@ class PicoBlog
         foreach ($entries as $id => $entry) {
             $text = \Slimdown::render($entry['entry']);
             $date = $entry['date'];
-            $text = "<a href='?id={$id}' title='{$date}'>[{$id}]</a> " . $text;
+            $text = "<a href='?id={$id}' title='{$date}' class='id'>[{$id}]</a> " . $text;
             $html .= str_replace('{entry}', $text, $entryWrap);
         }
         return $html;
