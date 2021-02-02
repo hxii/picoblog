@@ -39,7 +39,7 @@ class PicoBlog
      */
     public function parseQuery()
     {
-        if (isset($_SERVER['QUERY_STRING'])) {
+        if (isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) {
             parse_str($_SERVER['QUERY_STRING'], $return);
             return $return;
         }
@@ -124,16 +124,17 @@ class PicoBlog
      * Returns a filtered list of raw entries
      *
      * @param string|array $search entry filter. can be 'all', 'newest', 'oldest', 'random' or an ID/Tag.
+     * @param bool $reverse return array in reverse order
      * For ID, we're looking for ['id'=>'IDHERE']. For tag, we're looking for ['tag'=>'tagname']
      * @return boolean|array
      */
-    public function getEntries($search)
+    public function getEntries($search, bool $reverse = false)
     {
         switch ($search) {
             case '':
                 return false;
             case 'all':
-                return $this->rawentries;
+                return ($reverse) ? array_reverse($this->rawentries) : $this->rawentries;
             case 'newest':
                 return [reset($this->rawentries)];
             case 'oldest':
