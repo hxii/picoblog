@@ -47,7 +47,7 @@ class PicoBlog
     }
 
     /**
-     * Read source file
+     * Read source file/URL
      *
      * @return boolean true if successful, false if not
      */
@@ -55,6 +55,11 @@ class PicoBlog
     {
         if (is_file($this->sourcefile) && is_readable($this->sourcefile)) {
             $this->rawentries = explode(PHP_EOL, file_get_contents($this->sourcefile));
+            if (!empty($this->rawentries)) {
+                return true;
+            }
+        } elseif ($url = filter_var($this->sourcefile, FILTER_VALIDATE_URL)) {
+            $this->rawentries = preg_split('/\x0A/', file_get_contents($url));
             if (!empty($this->rawentries)) {
                 return true;
             }
@@ -76,7 +81,7 @@ class PicoBlog
                 $pattern = '/^(?<date>[^\t]+)\t(?<entry>.+)/';
                 break;
             case 'picoblog':
-                $pattern = '/^(?<date>[^\t]+)\t#(?<id>[a-zA-Z0-9]{6})\t(?<entry>.+)/';
+                $pattern = '/^(?<date>[^\t]+)\t\(#(?<id>[a-zA-Z0-9]{6,7})\)\t(?<entry>.+)/';
                 break;
         }
         foreach ($entries as $i => $entry) {
